@@ -1,4 +1,4 @@
-// calendar manager agent
+// calendar_manager.asl
 
 /* Initial beliefs */
 
@@ -15,11 +15,20 @@ td("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#CalendarServic
  * Plan for reacting to the addition of the goal !start
  * Triggering event: addition of goal !start
  * Context: the agents believes that a WoT TD of a was:CalendarService is located at Url
- * Body: greets the user
-*/
+ * Body: greets the user, creates the ThingArtifact, reads and processes the upcoming event
+ */
 @start_plan
 +!start : td("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#CalendarService", Url) <-
-    .print("Hello world").
+    .print("Calendar manager starting");
+    // Create the calendar ThingArtifact using the URL from the TD
+    makeArtifact("calendar", "org.hyperagents.jacamo.artifacts.wot.ThingArtifact", [Url], CalArt);
+    // Read the property affordance was:ReadUpcomingEvent; the result is a list of upcoming events.
+    readProperty("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#ReadUpcomingEvent", EventList);
+    // Extract the first element of the list (expected to be "now")
+    .nth(0, EventList, UpcomingEvent);
+    .print("Upcoming event is: ", UpcomingEvent);
+    // Inform the personal assistant about the upcoming event.
+    .send("personal_assistant", tell, upcoming_event(UpcomingEvent)).
 
 /* Import behavior of agents that work in CArtAgO environments */
 { include("$jacamoJar/templates/common-cartago.asl") }
