@@ -61,5 +61,9 @@ owner_state(_).
 +owner_state(State) : true <-
     .print("The owner is ", State).
 
+@ignore_cfp
++!kqml_received(Sender, cfp, wake_up, MessageId) : true <-
+    .print("Wristband Manager ignoring CFP from ", Sender).
+    
 /* Import behavior of agents that work in CArtAgO environments */
 { include("$jacamoJar/templates/common-cartago.asl") }
