@@ -62,7 +62,7 @@ wakeup_preference(artificial, 1).
     !broadcast_cfp.
 
 /* --- CFP Broadcasting and Proposal Handling --- */
-// Instead of broadcasting to all, send targeted CFP messages to only the controllers.
+// broadcasting to all
 @broadcast_cfp_plan
 +!broadcast_cfp : true <-
     .broadcast(cfp, wake_up);
@@ -72,9 +72,14 @@ wakeup_preference(artificial, 1).
 @handle_proposals
 +message(From, tell, proposal(Agent, Action)) : true <-
     .print("PA: Received proposal from ", Agent, " for ", Action);
-    // Accept each proposal (here you could compare wake-up preferences).
-    .send(Agent, accept, Action);
+    .send(Agent, tell, accept(Action));
     .print("PA: Accepted proposal from ", Agent).
+
+@handle_proposals_kqml
++!kqml_received(Sender, proposal, Proposal, MessageId) : true <-
+    .print("PA: Received proposal from ", Sender, " for ", Proposal);
+    .send(Sender, tell, accept(Proposal));
+    .print("PA: Accepted proposal from ", Sender).
 
 // Handle incoming refusal messages.
 @handle_refusal

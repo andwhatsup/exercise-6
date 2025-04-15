@@ -30,15 +30,15 @@ lights("off").
 
 /* --- CFP Reaction (Existing Plans) --- */
 // When a CFP "wake_up" is received and the lights are off, propose to turn them on.
-@cfp_react_lights_off
-+cfp(wake_up) : lights(off) <-
-    .print("Lights: Received CFP; lights are off");
+@cfp_received_lights
++!kqml_received(Sender, cfp, wake_up, MessageId) : lights("off") <-
+    .print("Lights: Received CFP from ", Sender, "; lights are off");
     .send("personal_assistant", proposal, turn_on_lights);
     .print("Lights: Proposal to turn on lights sent").
 
 // If the lights are not off, refuse the CFP.
 @cfp_react_lights_on
-+cfp(wake_up) : not lights(off) <-
++!kqml_received(Sender, cfp, wake_up, MessageId) : not lights("off") <-
     .print("Lights: Received CFP; lights are not off");
     .send("personal_assistant", refuse, turn_on_lights);
     .print("Lights: Refusal sent").
@@ -55,7 +55,7 @@ lights("off").
 @turn_on_lights_plan
 +!turn_on_lights : true <-
     .print("Lights: Turning lights on...");
-    invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "on");
+    invokeAction("was:SetState", ["on"]);
     -+lights("off");
     +lights("on");
     .print("Lights: Lights have been turned on");
@@ -65,7 +65,7 @@ lights("off").
 @turn_off_lights_plan
 +!turn_off_lights : true <-
     .print("Lights: Turning lights off...");
-    invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "off");
+    invokeAction("was:SetState", ["off"]);
     -+lights("on");
     +lights("off");
     .print("Lights: Lights have been turned off");

@@ -29,15 +29,15 @@ blinds("lowered").
 
 /* --- CFP Reaction --- */
 // When a CFP "wake_up" is received and the blinds are lowered, propose to raise the blinds.
-@cfp_react_blinds_lowered
-+cfp(wake_up) : blinds(lowered) <-
-    .print("Blinds: Received CFP; blinds are lowered");
+@cfp_received_blinds
++!kqml_received(Sender, cfp, wake_up, MessageId) : blinds("lowered") <-
+    .print("Blinds: Received CFP from ", Sender, "; blinds are lowered");
     .send("personal_assistant", proposal, raise_blinds);
     .print("Blinds: Proposal to raise blinds sent").
 
 // If the blinds are not lowered, refuse the CFP.
 @cfp_react_blinds_not_lowered
-+cfp(wake_up) : not blinds(lowered) <-
++!kqml_received(Sender, cfp, wake_up, MessageId) : not blinds("lowered") <-
     .print("Blinds: Received CFP; blinds are not lowered");
     .send("personal_assistant", refuse, raise_blinds);
     .print("Blinds: Refusal sent").
@@ -54,7 +54,7 @@ blinds("lowered").
 @raise_blinds_plan
 +!raise_blinds : true <-
     .print("Blinds: Raising blinds...");
-    invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "raised");
+    invokeAction("was:SetState", ["raised"]);
     -+blinds("lowered");
     +blinds("raised");
     .print("Blinds: Blinds have been raised");
@@ -64,7 +64,7 @@ blinds("lowered").
 @lower_blinds_plan
 +!lower_blinds : true <-
     .print("Blinds: Lowering blinds...");
-    invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "lowered");
+    invokeAction("was:SetState", ["lowered"]);
     -+blinds("raised");
     +blinds("lowered");
     .print("Blinds: Blinds have been lowered");
