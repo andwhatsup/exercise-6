@@ -30,10 +30,10 @@ td("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#CalendarServic
     // Inform the personal assistant about the upcoming event.
     .send("personal_assistant", tell, Event).
 
-/* Import behavior of agents that work in CArtAgO environments */
-{ include("$jacamoJar/templates/common-cartago.asl") }
-
-
 @ignore_cfp
 +!kqml_received(Sender, cfp, wake_up, MessageId) : true <-
     .print("Calendar Manager ignoring CFP from ", Sender).
+
+
+/* Import behavior of agents that work in CArtAgO environments */
+{ include("$jacamoJar/templates/common-cartago.asl") }
