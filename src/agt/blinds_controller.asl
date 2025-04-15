@@ -14,12 +14,7 @@ blinds("lowered").
 // The agent has the goal to start
 !start.
 
-/* 
- * Plan for reacting to the addition of the goal !start
- * Triggering event: addition of goal !start
- * Context: the agents believes that a WoT TD of a was:Blinds is located at Url
- * Body: greets the user
-*/
+/* --- Initialization --- */
 @init_mqtt_plan
 +!start : true <-
     makeArtifact("mqtt_blinds", "room.MQTTArtifact", ["blinds_controller"], MQTTArt);
@@ -32,52 +27,61 @@ blinds("lowered").
     makeArtifact("blinds", "org.hyperagents.jacamo.artifacts.wot.ThingArtifact", [Url], BlindsArt);
     .print("Blinds artifact created").
 
-/* 
- * Plan to react to a CFP for waking up.
- * If a CFP "wake_up" is received and the blinds are lowered, send a proposal.
- */
-@cfp_react_blinds_raise
+/* --- CFP Reaction --- */
+// When a CFP "wake_up" is received and the blinds are lowered, propose to raise the blinds.
+@cfp_react_blinds_lowered
 +cfp(wake_up) : blinds(lowered) <-
+    .print("Blinds: Received CFP; blinds are lowered");
     .send("personal_assistant", proposal, raise_blinds);
-    .print("Blinds controller proposes to raise blinds").
+    .print("Blinds: Proposal to raise blinds sent").
 
-@cfp_react_blinds_refuse
+// If the blinds are not lowered, refuse the CFP.
+@cfp_react_blinds_not_lowered
 +cfp(wake_up) : not blinds(lowered) <-
+    .print("Blinds: Received CFP; blinds are not lowered");
     .send("personal_assistant", refuse, raise_blinds);
-    .print("Blinds controller refuses to raise blinds").
+    .print("Blinds: Refusal sent").
 
-/*
- * When an acceptance is received for raising blinds, execute the goal.
- */
+/* --- Handling Acceptance --- */
+// When an acceptance for raising blinds is received, execute the goal.
 @accept_blinds
 +accept(raise_blinds) : true <-
+    .print("Blinds: Received acceptance for raising blinds");
     !raise_blinds.
 
-// Plan to raise the blinds
+/* --- Executing Action --- */
+// Plan to raise the blinds.
 @raise_blinds_plan
 +!raise_blinds : true <-
-    .print("Raising blinds...");
-    // Invoke the action affordance was:SetState with the parameter "raised"
+    .print("Blinds: Raising blinds...");
     invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "raised");
-    // Optionally update the belief
     -+blinds("lowered");
     +blinds("raised");
-    .print("Blinds have been raised");
-    // Inform the personal assistant.
+    .print("Blinds: Blinds have been raised");
     .send("personal_assistant", tell, blinds_state(raised)).
 
-// Plan to lower the blinds
+/* --- Optional: Lowering Blinds --- */
 @lower_blinds_plan
 +!lower_blinds : true <-
-    .print("Lowering blinds...");
-    // Invoke the action affordance was:SetState with the parameter "lowered"
+    .print("Blinds: Lowering blinds...");
     invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "lowered");
-    // Optionally update the belief
     -+blinds("raised");
     +blinds("lowered");
-    .print("Blinds have been lowered");
-    // Inform the personal assistant.
+    .print("Blinds: Blinds have been lowered");
     .send("personal_assistant", tell, blinds_state(lowered)).
 
-/* Import behavior of agents that work in CArtAgO environments */
+/* --- CFP Received Handling via KQML --- */
+// Handle incoming CFP messages (with performative cfp and content wake_up) sent by the personal assistant.
+@cfp_received_plan
++!kqml_received(Sender, cfp, wake_up, MessageId) : true <-
+    if (blinds(lowered)) {
+         .print("Blinds: Received CFP from ", Sender, "; blinds are lowered");
+         .send("personal_assistant", proposal, raise_blinds);
+         .print("Blinds: Proposal to raise blinds sent");
+    } else {
+         .print("Blinds: Received CFP from ", Sender, "; blinds are not lowered");
+         .send("personal_assistant", refuse, raise_blinds);
+         .print("Blinds: Refusal sent");
+    }.
+
 { include("$jacamoJar/templates/common-cartago.asl") }

@@ -25,10 +25,10 @@ td("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#CalendarServic
     // Read the property affordance was:ReadUpcomingEvent; the result is a list of upcoming events.
     readProperty("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#ReadUpcomingEvent", EventList);
     // Extract the first element of the list (expected to be "now")
-    .nth(0, EventList, UpcomingEvent);
-    .print("Upcoming event is: ", UpcomingEvent);
+    .nth(0, EventList, Event);
+    .print("Upcoming event is: ", Event);
     // Inform the personal assistant about the upcoming event.
-    .send("personal_assistant", tell, upcoming_event(UpcomingEvent)).
+    .send("personal_assistant", tell, Event).
 
 /* Import behavior of agents that work in CArtAgO environments */
 { include("$jacamoJar/templates/common-cartago.asl") }

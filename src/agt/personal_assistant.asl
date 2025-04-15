@@ -1,18 +1,18 @@
 // personal assistant agent
-
 broadcast(jason).
 
 /* Initial goals */ 
-
 // The agent has the goal to start
 !start.
 
-/* 
- * Plan for reacting to the addition of the goal !start
- * Triggering event: addition of goal !start
- * Context: true (the plan is always applicable)
- * Body: greets the user
-*/
+/* --- Initial Beliefs --- */
+// The personal assistant holds the user’s wake-up preferences.
+// Lower numeric rank indicates a higher preference.
+wakeup_preference(natural, 0).
+wakeup_preference(artificial, 1).
+
+
+/* --- Initialization --- */
 // Plan for initializing the MQTT artifact.
 @init_mqtt_plan
 +!start : true <-
@@ -26,66 +26,70 @@ broadcast(jason).
 +!start : true <-
     .print("Hello world").
 
-/* 
- * Message-handling plan: When a tell message carrying an upcoming event is received,
- * add the corresponding belief.
- */
-@handle_inform_upcoming_event
-+message(tell, upcoming_event(NE)) : true <-
-    .print("Received upcoming event message: ", upcoming_event(NE));
-    +upcoming_event(NE).
+/* --- Message Handling --- */
+// Handle incoming messages carrying information (e.g., from calendar and wristband managers).
+@kqml_received_plan
++!kqml_received(Sender, tell, Content, MessageId) : true <-
+    .print("Personal Assistant received message from ", Sender, ": ", Content);
+    if (Content == "now") {
+        .print("PA: upcoming_event is now");
+        -upcoming_event(_);
+        +upcoming_event("now")
+    } else {
+        if (Content == "awake" | Content == "asleep") {
+            .print("PA: owner_state is ", Content);
+            -owner_state(_);
+            +owner_state(Content)
+        }
+    };
+    !check_wake_up.
 
+@check_wake_up_plan
++!check_wake_up : true <-
+    if (upcoming_event("now") & owner_state("awake")) {
+        .print("PA: Enjoy your event");
+    } else { 
+        if (upcoming_event("now") & owner_state("asleep")) {
+        .print("PA: Starting wake-up routine");
+        !broadcast_cfp;
+        }
+    }.
 
-/* 
- * When a new upcoming event "now" is added, check the user state.
- * If the owner is awake, simply print "Enjoy your event".
- * If the owner is asleep, start the wake-up routine.
- */
-@upcoming_event_plan_awake
+/* --- Reaction Based on Beliefs --- */
+// If an upcoming event "now" is added while the owner is awake.
+@react_upcoming_awake
 +upcoming_event("now") : owner_state(awake) <-
-    .print("Enjoy your event").
+    .print("PA: Enjoy your event").
 
-@upcoming_event_plan_asleep
+// If an upcoming event "now" is added while the owner is asleep.
+@react_upcoming_asleep
 +upcoming_event("now") : owner_state(asleep) <-
-    .print("Starting wake-up routine");
+    .print("PA: Starting wake-up routine");
     !broadcast_cfp.
 
-/*
- * Plan to broadcast a Call For Proposals (CFP) for the wake-up task.
- * (In this example, we use Jason’s broadcast mechanism.)
- */
+/* --- CFP Broadcasting and Proposal Handling --- */
+// Broadcast a Call For Proposals (CFP) for the wake-up task.
+// Here the CFP message has performative cfp and content wake_up.
 @broadcast_cfp_plan
 +!broadcast_cfp : true <-
     .broadcast(cfp, wake_up);
-    .print("CFP broadcast for wake-up sent").
+    .print("PA: CFP broadcast for wake-up sent").
 
-/*
- * Plan to handle incoming proposals.
- * Proposals are received as messages of the form:
- *   proposal(Agent, Action)
- * where Action can be "raise_blinds" (from the blinds controller) or
- * "turn_on_lights" (from the lights controller).
- */
-@handle_proposals_blinds
-+proposal(Agent, raise_blinds) : true <-
-    .print("Received proposal from ", Agent, " to raise blinds");
-    .send(Agent, accept, raise_blinds);
-    .print("Accepted proposal from ", Agent).
+// Handle incoming proposals from any controller.
+// In this simple example, the PA always accepts available proposals.
+@handle_proposals
++message(From, tell, proposal(Agent, Action)) : true <-
+    .print("PA: Received proposal from ", Agent, " for ", Action);
+    // In a full implementation, the PA could compare the proposals’ ranked preferences.
+    // Here we simply accept each proposal.
+    .send(Agent, accept, Action);
+    .print("PA: Accepted proposal from ", Agent).
 
-@handle_proposals_lights
-+proposal(Agent, turn_on_lights) : true <-
-    .print("Received proposal from ", Agent, " to turn on lights");
-    .send(Agent, accept, turn_on_lights);
-    .print("Accepted proposal from ", Agent).
-
-/* 
- * Optionally, add a plan to handle refusal messages or finalize the contract net process.
- * For example, after a delay, reject any remaining proposals.
- */
+// Optionally, finalize the Contract Net Protocol (reject any remaining proposals after a delay)
 @finalize_cnp
 +!finalize_cnp : true <-
     .broadcast(reject, wake_up);
-    .print("Finalizing CNP: remaining proposals rejected").
+    .print("PA: Finalizing CNP: remaining proposals rejected").
 
 
 /* Import behavior of agents that work in CArtAgO environments */

@@ -14,13 +14,8 @@ lights("off").
 // The agent has the goal to start
 !start.
 
-/* 
- * Plan for reacting to the addition of the goal !start
- * Triggering event: addition of goal !start
- * Context: the agents believes that a WoT TD of a was:Lights is located at Url
- * Body: greets the user
-*/
-// Plan for initializing the MQTT artifact.
+/* --- Initialization --- */
+// Initialize the MQTT artifact for the lights controller.
 @init_mqtt_plan
 +!start : true <-
     makeArtifact("mqtt_lights", "room.MQTTArtifact", ["lights_controller"], MQTTArt);
@@ -33,62 +28,61 @@ lights("off").
     makeArtifact("lights", "org.hyperagents.jacamo.artifacts.wot.ThingArtifact", [Url], LightsArt);
     .print("Lights artifact created").
 
-/* 
- * Plan to react to a CFP for waking up when lights are off.
- * If a CFP "wake_up" is received and the lights are off, send a proposal.
- */
+/* --- CFP Reaction (Existing Plans) --- */
+// When a CFP "wake_up" is received and the lights are off, propose to turn them on.
 @cfp_react_lights_off
 +cfp(wake_up) : lights(off) <-
-    .print("Lights controller received CFP; lights are off");
+    .print("Lights: Received CFP; lights are off");
     .send("personal_assistant", proposal, turn_on_lights);
-    .print("Lights controller proposes to turn on lights").
+    .print("Lights: Proposal to turn on lights sent").
 
-/* 
- * Plan to react to a CFP for waking up when lights are not off.
- * If a CFP "wake_up" is received and the lights are not off, send a refusal.
- */
-@cfp_react_lights_not_off
+// If the lights are not off, refuse the CFP.
+@cfp_react_lights_on
 +cfp(wake_up) : not lights(off) <-
-    .print("Lights controller received CFP; lights are not off");
+    .print("Lights: Received CFP; lights are not off");
     .send("personal_assistant", refuse, turn_on_lights);
-    .print("Lights controller refuses to turn on lights").
+    .print("Lights: Refusal sent").
 
-/*
- * Plan to handle an acceptance for turning on lights.
- * When an acceptance message (accept(turn_on_lights)) is received, execute the goal.
- */
+/* --- Handling Acceptance --- */
+// When an acceptance for turning on lights is received, execute the goal.
 @accept_lights
 +accept(turn_on_lights) : true <-
-    .print("Lights controller received acceptance for turning on lights");
+    .print("Lights: Received acceptance for turning on lights");
     !turn_on_lights.
 
-/* 
- * Plan to turn the lights on.
- * This plan invokes the action affordance was:SetState with the parameter "on",
- * updates the belief, prints a message, and informs the personal assistant.
- */
+/* --- Executing Action --- */
+// Plan to turn the lights on.
 @turn_on_lights_plan
 +!turn_on_lights : true <-
-    .print("Turning lights on...");
+    .print("Lights: Turning lights on...");
     invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "on");
     -+lights("off");
     +lights("on");
-    .print("Lights have been turned on");
+    .print("Lights: Lights have been turned on");
     .send("personal_assistant", tell, lights_state(on)).
 
-/* 
- * Plan to turn the lights off.
- * This plan invokes the action affordance was:SetState with the parameter "off",
- * updates the belief, prints a message, and informs the personal assistant.
- */
+/* --- Optional: Turning Lights Off --- */
 @turn_off_lights_plan
 +!turn_off_lights : true <-
-    .print("Turning lights off...");
+    .print("Lights: Turning lights off...");
     invokeAction("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#SetState", "off");
     -+lights("on");
     +lights("off");
-    .print("Lights have been turned off");
+    .print("Lights: Lights have been turned off");
     .send("personal_assistant", tell, lights_state(off)).
 
-/* Import behavior of agents that work in CArtAgO environments */
+/* --- Handling Incoming CFP via KQML --- */
+// This plan handles incoming CFP messages (from the personal assistant)
+@cfp_received_plan
++!kqml_received(Sender, cfp, wake_up, MessageId) : true <-
+    if (lights(off)) {
+         .print("Lights: Received CFP from ", Sender, "; lights are off");
+         .send("personal_assistant", proposal, turn_on_lights);
+         .print("Lights: Proposal to turn on lights sent");
+    } else {
+         .print("Lights: Received CFP from ", Sender, "; lights are not off");
+         .send("personal_assistant", refuse, turn_on_lights);
+         .print("Lights: Refusal sent");
+    }.
+
 { include("$jacamoJar/templates/common-cartago.asl") }

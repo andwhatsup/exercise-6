@@ -37,16 +37,19 @@ owner_state(_).
 */
 @read_owner_state_plan
 +!read_owner_state : true <-
-    // performs an action that exploits the TD Property Affordance of type was:ReadOwnerState 
-    // the action unifies OwnerStateLst with a list holding the owner's state, e.g. ["asleep"]
-    readProperty("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#ReadOwnerState",  OwnerStateLst);
-    .nth(0,OwnerStateLst,OwnerState); // performs an action that unifies OwnerState with the element of the list OwnerStateLst at index 0
-    -+owner_state(OwnerState); // updates the beleif owner_state
-    .print("The owner is ", OwnerState);
+    // Read the owner's state property from the ThingArtifact.
+    readProperty("https://was-course.interactions.ics.unisg.ch/wake-up-ontology#ReadOwnerState", OwnerStateLst);
+    // Extract the first element from the list, e.g., "asleep".
+    .nth(0, OwnerStateLst, State);
+    // Remove any previous owner_state belief (regardless of value)
+    -owner_state(_);
+    // Add the new owner_state belief.
+    +owner_state(State);
+    .print("The owner is ", State);
     // Inform the personal assistant about the owner state change.
-    .send("personal_assistant", tell, owner_state(OwnerState));
+    .send("personal_assistant", tell, State);
     .wait(5000);
-    !read_owner_state. // creates the goal !read_owner_state
+    !read_owner_state.
 
 /* 
  * Plan for reacting to the addition of the belief !owner_state
